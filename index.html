@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>GemaTimeTracker</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <!-- End fonts -->
+
+  <!-- core:css -->
+  <link rel="stylesheet" href="assets/vendors/core/core.css">
+  <!-- endinject -->
+
+  <!-- Plugin css for this page -->
+  <!-- End plugin css for this page -->
+
+  <!-- inject:css -->
+  <link rel="stylesheet" href="assets/fonts/feather-font/css/iconfont.css">
+  <link rel="stylesheet" href="assets/vendors/flag-icon-css/css/flag-icon.min.css">
+  <!-- endinject -->
+
+  <!-- Layout styles -->
+  <link rel="stylesheet" href="assets/css/demo1/style.css">
+  <!-- End layout styles -->
+
+  <link rel="shortcut icon" href="assets/images/favicon.png" />
+</head>
+
+<body>
+  <div class="main-wrapper">
+    <div class="page-wrapper full-page">
+      <div class="page-content d-flex align-items-center justify-content-center">
+
+        <div class="row w-100 mx-0 auth-page">
+          <div class="col-md-8 col-xl-6 mx-auto">
+            <div class="card">
+              <div class="row">
+                <div class="col-md-12 ps-md-0">
+                  <div class="auth-form-wrapper px-5 py-5">
+                    <a href="#" class="noble-ui-logo d-block mb-2">Gema<span>TimeTracker</span></a>
+                    <h5 class="text-muted fw-normal mb-4">Happy day, record today work?</h5>
+                      <div class="mb-3">
+                        <div class="row">
+                          <div class="col-md-1">
+                            <button type="button" class="btn btn-primary btn-icon " id="start-button">
+                              <i data-feather="play"></i>
+                            </button>
+                            <button type="button" class="btn btn-danger btn-icon d-none" id="stop-button">
+                              <i data-feather="pause"></i>
+                            </button>
+                          </div>
+                          <div class="col-md-11">
+                            <div style="font-size: 24px;" id="timer">
+                              <span id="hours">00:</span>
+                              <span id="mins">00:</span>
+                              <span id="seconds">00</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="row mt-4">
+                          <div class="col-md-12">
+                            Your unique ID: <span id="id-show"></span> (<a href="#" id="login-button" data-toggle="modal" data-target="#loginModal">Login?</a>)
+                        </div>
+
+                        <div class="row mt-4">
+                          <div class="col-md-12">
+                            History
+                            <div class="card mt-2">
+                              <ul class="list-group list-group-flush" id="history-list">
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="loginModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Login</h5>
+        </div>
+        <div class="modal-body">
+          Unique ID:
+          <input type="text" style="margin-left: 10px;" class="form-input" id="unique-id-textbox">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" id="submit-login-button">Login</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" id="close-modal-button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- core:js -->
+  <script src="assets/vendors/core/core.js"></script>
+  <!-- endinject -->
+
+  <!-- Plugin js for this page -->
+  <!-- End plugin js for this page -->
+
+  <!-- inject:js -->
+  <script src="assets/vendors/feather-icons/feather.min.js"></script>
+  <script src="assets/js/template.js"></script>
+  <!-- endinject -->
+
+  <script>
+    var hours = 0;
+    var mins = 0;
+    var seconds = 0;
+
+    $('#submit-login-button').click(function() {
+      var key = $('#unique-id-textbox').val();
+
+      if (key) {
+        localStorage.setItem("key", key);
+        window.location.reload();
+      }
+    });
+
+    $('#login-button').click(function() {
+      $('#loginModal').modal('show')
+    });
+
+    $('#close-modal-button').click(function() {
+      $('#loginModal').modal('hide')
+    });
+
+    $( document ).ready(function() {
+      let key = localStorage.getItem("key");
+
+      if (key) {
+        $('#id-show').text(key);
+        $.ajax
+        ({
+          type: "GET",
+          url: "https://timetracker-prototype.gema-wardian.workers.dev/api/time/retrieve",
+          dataType: 'json',
+          headers: {
+            "Authorization": key
+          },
+          success: function (data){
+            var result = JSON.parse(data.data)
+
+            if (result.status) {
+              var millis = Date.now() - result.startdate
+              var total_second = Math.floor(millis / 1000)
+
+              total_second = Number(total_second);
+              hours = Math.floor(total_second / 3600);
+              mins = Math.floor(total_second % 3600 / 60);
+              seconds = Math.floor(total_second % 3600 % 60);
+
+              $("#hours").text(hours + ':');
+              $("#mins").text(mins + ':');
+
+              startTimer();
+
+              $('#start-button').addClass('d-none');
+              $('#stop-button').removeClass('d-none');
+
+              console.log(total_second);
+            }
+          }
+        });
+
+        retrieveHistory(key);
+      } else {
+        key = makeid(16);
+        localStorage.setItem("key", key);
+        $('#id-show').text(key);
+      }
+    });
+
+    $('#start-button').click(function () {
+      $('#start-button').addClass('d-none');
+      $('#stop-button').removeClass('d-none');
+      let key = localStorage.getItem("key");
+      startTimer();
+
+      $.ajax
+      ({
+        type: "POST",
+        url: "https://timetracker-prototype.gema-wardian.workers.dev/api/time/start",
+        dataType: 'json',
+        headers: {
+          "Authorization": key
+        },
+        success: function (data){
+          console.log(data);
+        }
+      });
+    });
+
+    $('#stop-button').click(function () {
+      $('#start-button').removeClass('d-none');
+      $('#stop-button').addClass('d-none');
+      let key = localStorage.getItem("key");
+      clearTimeout(timex);
+
+      $.ajax
+        ({
+          type: "POST",
+          url: "https://timetracker-prototype.gema-wardian.workers.dev/api/time/stop",
+          dataType: 'json',
+          headers: {
+            "Authorization": key
+          },
+          success: function (data){
+            console.log(data);
+
+            hours = 0;
+            mins = 0;
+            seconds = 0;
+            $('#hours', '#mins').html('00:');
+            $('#seconds').html('00');
+
+            retrieveHistory(key);
+          }
+        });
+    });
+
+    $('#reset').click(function () {
+      hours = 0;
+      mins = 0;
+      seconds = 0;
+      $('#hours', '#mins').html('00:');
+      $('#seconds').html('00');
+    });
+
+    function convertTime(timestamp)
+    {
+      var d = new Date(timestamp), // Convert the passed timestamp to milliseconds
+        yyyy = d.getFullYear(),
+        mm = ('0' + (d.getMonth() + 1)).slice(-2),  // Months are zero based. Add leading 0.
+        dd = ('0' + d.getDate()).slice(-2),         // Add leading 0.
+        hh = d.getHours(),
+        h = hh,
+        min = ('0' + d.getMinutes()).slice(-2),     // Add leading 0.
+        sec = d.getSeconds(),
+        ampm = 'AM',
+        time;
+
+      if (hh > 12) {
+          h = hh - 12;
+          ampm = 'PM';
+      } else if (hh === 12) {
+          h = 12;
+          ampm = 'PM';
+      } else if (hh == 0) {
+          h = 12;
+      }
+
+      // ie: 2014-03-24, 3:00 PM
+      time = yyyy + '-' + mm + '-' + dd + ', ' + h + ':' + min + ':' + sec + ' ' + ampm;
+      return time;
+    }
+
+    function startTimer() {
+      timex = setTimeout(function () {
+        seconds++;
+        if (seconds > 59) {
+          seconds = 0;
+          mins++;
+          if (mins > 59) {
+            mins = 0;
+            hours++;
+            if (hours < 10) {
+              $("#hours").text('0' + hours + ':')
+            } else $("#hours").text(hours + ':');
+          }
+
+          if (mins < 10) {
+            $("#mins").text('0' + mins + ':');
+          } else $("#mins").text(mins + ':');
+        }
+        if (seconds < 10) {
+          $("#seconds").text('0' + seconds);
+        } else {
+          $("#seconds").text(seconds);
+        }
+
+
+        startTimer();
+      }, 1000);
+    }
+
+
+    function makeid(length) {
+      var result = '';
+      var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      var charactersLength = characters.length;
+      for (var i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+      }
+      return result;
+    }
+
+    function retrieveHistory(key) {
+      if (key) {
+        $.ajax
+        ({
+          type: "GET",
+          url: "https://timetracker-prototype.gema-wardian.workers.dev/api/time/history",
+          dataType: 'json',
+          headers: {
+            "Authorization": key
+          },
+          success: function (data){
+            if (data.status) {
+              var result = JSON.parse(data.data)
+              
+              $("#history-list").html('');
+
+              result.forEach(function(elem) {
+                $("#history-list").append('<li class="list-group-item">' + convertTime(elem.start) + " - " + convertTime(elem.stop) + '</li>');
+              });
+              console.log(result)
+            }
+          }
+        });
+      }
+    }
+  </script>
+
+  <!-- Custom js for this page -->
+  <!-- End custom js for this page -->
+
+</body>
+
+</html>
